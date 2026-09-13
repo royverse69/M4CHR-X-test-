@@ -24,11 +24,6 @@ export class Input {
     this.pointerLocked = false; this.anyInput = false; this.lastPadButtons = [];
     this.onLockChange = null; this.onAnyInput = null; this.lastActive = performance.now();
     this.invertY = false; this.onDeviceChange = null;
-    // Mobile controls feed the existing input state; physics/player code is untouched.
-    this.isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-    this.touchActions = {}; this.touchMove = { x: 0, y: 0 }; this.touchLook = { x: 0, y: 0 };
-    this._joyId = null; this._lookId = null; this._joyCenter = { x: 0, y: 0 }; this._lookLast = { x: 0, y: 0 };
-    if (this.isTouch) this._initTouchControls();
 
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return;
@@ -38,8 +33,8 @@ export class Input {
       this.anyInput = true;
     });
     window.addEventListener('keyup', (e) => { const a = KEYMAP[e.code]; if (a) this.keys[a] = false; if (!e.shiftKey) this.keys.sprint = false; });
-    document.addEventListener('visibilitychange', () => { if (document.hidden) { this.keys = {}; this.mouseBtns = {}; this.touchActions = {}; this.touchMove.x = this.touchMove.y = 0; } });
-    window.addEventListener('blur', () => { this.keys = {}; this.mouseBtns = {}; this.touchActions = {}; this.touchMove.x = this.touchMove.y = 0; });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { this.keys = {}; this.mouseBtns = {}; } });
+    window.addEventListener('blur', () => { this.keys = {}; this.mouseBtns = {}; });
     this.padState = {}; this.padPrev = {};
     document.addEventListener('mousemove', (e) => {
       if (!this.pointerLocked) return;
@@ -64,50 +59,9 @@ export class Input {
     window.addEventListener('gamepadconnected', (e) => { this.gamepadIndex = e.gamepad.index; });
   }
 
-  _initTouchControls() {
-    const root = document.getElementById('hud') || document.body;
-    const wrap = document.createElement('div'); wrap.id = 'mobileControls';
-    wrap.innerHTML = `
-      <div class="mc-joystick"><div class="mc-stick"></div></div><div class="mc-look"></div>
-      <div class="mc-actions">
-        <button data-act="fire" class="mc-fire">FIRE</button><button data-act="aim">AIM</button>
-        <button data-act="jump">JUMP</button><button data-act="crouch">SLIDE<br>/ DASH</button>
-        <button data-act="grapple">GRAPPLE</button><button data-act="melee">SLASH</button>
-        <button data-act="reload">RELOAD</button><button data-act="grenade">GRENADE</button>
-        <button data-act="focus" class="mc-focus">FOCUS</button><button data-act="nextWeapon">NEXT</button>
-        <button data-act="prevWeapon">PREV</button><button data-act="sprint">SPRINT</button>
-      </div>`;
-    root.appendChild(wrap);
-    const style=document.createElement('style'); style.textContent=`
-      #mobileControls{display:none;position:fixed;inset:0;z-index:50;pointer-events:none;touch-action:none;user-select:none;-webkit-user-select:none;font-family:system-ui,sans-serif}
-      #mobileControls *{box-sizing:border-box} #mobileControls button{pointer-events:auto;touch-action:none;width:58px;height:58px;border:1.5px solid rgba(255,255,255,.72);border-radius:50%;background:rgba(20,25,35,.42);color:#fff;font-weight:800;font-size:10px;line-height:1.05;text-shadow:0 1px 2px #000;-webkit-tap-highlight-color:transparent}
-      #mobileControls button.active{background:rgba(255,255,255,.28);transform:scale(.95)} #mobileControls .mc-fire{width:72px;height:72px;background:rgba(180,40,40,.48);font-size:12px} #mobileControls .mc-focus{background:rgba(130,80,190,.48)}
-      .mc-joystick{position:absolute;left:22px;bottom:28px;width:128px;height:128px;border-radius:50%;border:2px solid rgba(255,255,255,.38);background:rgba(30,35,45,.22);pointer-events:auto;touch-action:none}
-      .mc-stick{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px;border-radius:50%;background:rgba(255,255,255,.35);border:2px solid rgba(255,255,255,.72);pointer-events:none}
-      .mc-look{position:absolute;left:43%;top:0;width:57%;height:100%;pointer-events:auto;touch-action:none}
-      .mc-actions{position:absolute;right:16px;bottom:20px;width:210px;height:300px;pointer-events:none}.mc-actions button{position:absolute}
-      .mc-actions [data-act="fire"]{right:0;bottom:92px}.mc-actions [data-act="aim"]{right:78px;bottom:132px}.mc-actions [data-act="jump"]{right:80px;bottom:54px}.mc-actions [data-act="crouch"]{right:0;bottom:20px}
-      .mc-actions [data-act="grapple"]{right:154px;bottom:105px}.mc-actions [data-act="melee"]{right:148px;bottom:34px}.mc-actions [data-act="reload"]{right:86px;bottom:188px}.mc-actions [data-act="grenade"]{right:18px;bottom:188px}
-      .mc-actions [data-act="focus"]{right:0;bottom:176px}.mc-actions [data-act="nextWeapon"]{right:86px;bottom:246px}.mc-actions [data-act="prevWeapon"]{right:154px;bottom:198px}.mc-actions [data-act="sprint"]{left:0;bottom:20px}
-      @media (max-width:700px) and (pointer:coarse){#mobileControls{display:block}}
-    `; document.head.appendChild(style);
-    const setAction=(act,down)=>{if(act==='focus'){this.touchActions.aim=down;this.touchActions.fire=down}else this.touchActions[act]=down;this.anyInput=true;this.lastActive=performance.now()};
-    wrap.querySelectorAll('button[data-act]').forEach(btn=>{const end=e=>{e.preventDefault();btn.classList.remove('active');setAction(btn.dataset.act,false)};btn.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')return;e.preventDefault();btn.setPointerCapture?.(e.pointerId);btn.classList.add('active');setAction(btn.dataset.act,true)},{passive:false});btn.addEventListener('pointerup',end,{passive:false});btn.addEventListener('pointercancel',end,{passive:false});btn.addEventListener('lostpointercapture',end,{passive:false})});
-    const joy=wrap.querySelector('.mc-joystick'),stick=wrap.querySelector('.mc-stick'),radius=46;
-    const updateJoy=(x,y)=>{let dx=x-this._joyCenter.x,dy=y-this._joyCenter.y,d=Math.hypot(dx,dy),k=d>radius?radius/d:1;this.touchMove.x=Math.max(-1,Math.min(1,dx*k/radius));this.touchMove.y=Math.max(-1,Math.min(1,-dy*k/radius));stick.style.transform=`translate(${dx*k}px,${dy*k}px)`;this.lastActive=performance.now()};
-    const resetJoy=()=>{this._joyId=null;this.touchMove.x=0;this.touchMove.y=0;stick.style.transform=''};
-    joy.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')return;e.preventDefault();this._joyId=e.pointerId;const r=joy.getBoundingClientRect();this._joyCenter.x=r.left+r.width/2;this._joyCenter.y=r.top+r.height/2;joy.setPointerCapture?.(e.pointerId);updateJoy(e.clientX,e.clientY)},{passive:false});
-    joy.addEventListener('pointermove',e=>{if(e.pointerId===this._joyId){e.preventDefault();updateJoy(e.clientX,e.clientY)}},{passive:false}); ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>joy.addEventListener(ev,e=>{if(e.pointerId===this._joyId)resetJoy()},{passive:false}));
-    const look=wrap.querySelector('.mc-look');
-    look.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')return;e.preventDefault();this._lookId=e.pointerId;this._lookLast.x=e.clientX;this._lookLast.y=e.clientY;look.setPointerCapture?.(e.pointerId)},{passive:false});
-    look.addEventListener('pointermove',e=>{if(e.pointerId!==this._lookId)return;e.preventDefault();this.touchLook.x+=e.clientX-this._lookLast.x;this.touchLook.y+=e.clientY-this._lookLast.y;this._lookLast.x=e.clientX;this._lookLast.y=e.clientY;this.lastActive=performance.now()},{passive:false});
-    ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>look.addEventListener(ev,e=>{if(e.pointerId===this._lookId)this._lookId=null},{passive:false}));
-  }
-
   // browsers refuse a new pointer lock for about a second after Esc released the last one, so a
   // failed request is retried until it takes or the game stops wanting it
   requestLock() {
-    if (this.isTouch) return;
     this.wantLock = true; if (this.pointerLocked) return;
     const attempt = (opts) => { try { const p = this.canvas.requestPointerLock(opts); return p && p.catch ? p : Promise.resolve(); } catch (err) { return Promise.reject(err); } };
     attempt({ unadjustedMovement: true }).catch(() => attempt()).catch(() => {
@@ -129,7 +83,6 @@ export class Input {
     const s = this.state;
     for (const k in this.keys) if (this.keys[k]) s[k] = true;
     for (const k in this.mouseBtns) if (this.mouseBtns[k]) s[k] = true;
-    for (const k in this.touchActions) if (this.touchActions[k]) s[k] = true;
     if (this.wheel > 0) s.nextWeapon = true; else if (this.wheel < 0) s.prevWeapon = true; this.wheel = 0;
 
     // movement from keys
@@ -163,7 +116,6 @@ export class Input {
     } else this._pad = null;
     this.padPrev = this.padState; this.padState = padS;
 
-    if (this.isTouch) { mx=this.touchMove.x; my=this.touchMove.y; lx += -this.touchLook.x*this.mouseSens*1.55; ly += -this.touchLook.y*this.mouseSens*1.55; this.touchLook.x=0; this.touchLook.y=0; }
     const ml = Math.hypot(mx, my); if (ml > 1) { mx /= ml; my /= ml; }
     this.move.x = mx; this.move.y = my;
     this.look.x = lx; this.look.y = this.invertY ? -ly : ly;
