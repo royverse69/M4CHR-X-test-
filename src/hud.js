@@ -106,16 +106,6 @@ export const CONTROLS_HTML = `
     <div><b>Both mouse buttons</b> dash-slash once the gauge is lit</div>
     <div><b>1-4 / wheel</b> rifle · shotgun · sniper · katana</div>
   </div>
-  <div><div class="colhead">MOBILE</div>
-    <div><b>Left stick</b> move &nbsp; <b>right side drag</b> look</div>
-    <div><b>FIRE</b> shoot / slash &nbsp; <b>AIM</b> aim / block</div>
-    <div><b>JUMP</b> jump / wall jump / double jump</div>
-    <div><b>SLIDE / DASH</b> slide on ground · air dash</div>
-    <div><b>GRAPPLE</b> hold to reel &nbsp; <b>SLASH</b> quick katana</div>
-    <div><b>FOCUS</b> holds aim + fire together when ready</div>
-    <div><b>NEXT / PREV</b> switch weapons &nbsp; <b>SPRINT</b> sprint</div>
-    <div><b>RELOAD</b> reload &nbsp; <b>GRENADE</b> grenade</div>
-  </div>
   <div><div class="colhead">PS5 CONTROLLER</div>
     <div><b>L stick</b> move &nbsp; <b>R stick</b> look &nbsp; <b>L3</b> sprint</div>
     <div><b>R2</b> fire / slash &nbsp; <b>L2</b> aim / block</div>
